@@ -268,6 +268,24 @@ public class CompareModelVersionsUtil {
         return s;
     }
 
+    private static Set<String> parseList(String s) {
+        if (s == null) {
+            return null;
+        }
+        String[] elements = s.trim().split(",");
+        Set<String> set = null;
+        for (String element : elements) {
+            element = element.trim();
+            if (element.length() > 0) {
+                if (set == null) {
+                    set = new HashSet<>();
+                }
+                set.add(element.trim());
+            }
+        }
+        return set;
+    }
+
     private void compareModels() {
         if (subsystems == null) {
             compareCoreModels();
@@ -310,7 +328,6 @@ public class CompareModelVersionsUtil {
             compareModel(context);
         }
     }
-
 
     private ModelNode trimSubsystem(ModelNode definition) {
         ModelNode def = definition.clone();
@@ -438,9 +455,9 @@ public class CompareModelVersionsUtil {
         boolean currentNillable = current.get(NILLABLE).asBoolean(false);
         boolean legacyNillable = legacy.get(NILLABLE).asBoolean(false);
         boolean hasAlternativeCurrent = current.hasDefined(ALTERNATIVES);
-        
+
         if (currentNillable != legacyNillable && !hasAlternativeCurrent) {
-            if (currentNillable){//than legacy wasn't
+            if (currentNillable) {//than legacy wasn't
                 context.print("* ");
             }
             context.println("Different 'nillable' for " + id + ". Current: " + currentNillable + "; legacy: " + legacyNillable);
@@ -469,7 +486,7 @@ public class CompareModelVersionsUtil {
 
     private void compareDefault(CompareContext context, String id, ModelNode current, ModelNode legacy) {
         if (!current.get(DEFAULT).equals(legacy.get(DEFAULT))) {
-            if (legacy.hasDefined(DEFAULT)){
+            if (legacy.hasDefined(DEFAULT)) {
                 context.print("* ");
             }
             context.println("Different 'default' for " + id + ". Current: " + current.get(DEFAULT) + "; legacy: " + legacy.get(DEFAULT));
@@ -606,6 +623,65 @@ public class CompareModelVersionsUtil {
         return missing;
     }
 
+    private static class ResourceDefinition {
+        final ModelNode description;
+        final ModelNode versions;
+
+        ResourceDefinition(ModelNode description, ModelNode versions) {
+            this.description = description;
+            this.versions = versions;
+        }
+
+
+        Map<String, ModelNode> getAttributes() {
+            return getSortedEntryMap(description, ATTRIBUTES);
+        }
+
+        Map<String, ModelNode> getOperations() {
+            return getSortedEntryMap(description, OPERATIONS);
+        }
+
+        Set<String> getChildTypes() {
+            return getSortedEntryMap(description, CHILDREN).keySet();
+        }
+
+        Map<String, ModelNode> getChildren(String type) {
+            return getSortedEntryMap(description.get(CHILDREN, type), MODEL_DESCRIPTION);
+        }
+
+        Map<String, ModelNode> getOperationParameters(String opName) {
+            return getSortedEntryMap(description.get(OPERATIONS, opName), REQUEST_PROPERTIES);
+        }
+
+        private Map<String, ModelNode> getSortedEntryMap(ModelNode parent, String name) {
+            if (!parent.hasDefined(name)) {
+                return Collections.emptyMap();
+            }
+            Map<String, ModelNode> sorted = new TreeMap<>();
+            for (Property prop : parent.get(name).asPropertyList()) {
+                sorted.put(prop.getName(), prop.getValue());
+            }
+            return sorted;
+        }
+
+        private ModelVersion getCoreModelVersion() {
+            return Tools.createModelVersion(versions.get(Tools.CORE, Tools.STANDALONE));
+        }
+
+        private ModelVersion getSubsystemVersion(PathAddress address) {
+            for (PathElement element : address) {
+                if (element.getKey().equals(SUBSYSTEM)) {
+                    return Tools.createModelVersion(versions.get(SUBSYSTEM, element.getValue()));
+                }
+            }
+            throw new IllegalArgumentException("Could not find subsystem version for " + address);
+        }
+
+        boolean isRuntime() {
+            return description.hasDefined(STORAGE) && description.get(STORAGE).asString().equals("runtime");
+        }
+    }
+
     private class CompareContext {
         final PathAddress rootAddress;
         final PathAddress pathAddress;
@@ -691,6 +767,7 @@ public class CompareModelVersionsUtil {
         void print(String msg) {
             out.print(msg);
         }
+
         void println(String msg) {
             if (!outputPath) {
                 outputPath = true;
@@ -699,84 +776,6 @@ public class CompareModelVersionsUtil {
             }
             out.println(msg);
         }
-    }
-
-
-    private static class ResourceDefinition {
-        final ModelNode description;
-        final ModelNode versions;
-
-        ResourceDefinition(ModelNode description, ModelNode versions) {
-            this.description = description;
-            this.versions = versions;
-        }
-
-
-        Map<String, ModelNode> getAttributes() {
-            return getSortedEntryMap(description, ATTRIBUTES);
-        }
-
-        Map<String, ModelNode> getOperations() {
-            return getSortedEntryMap(description, OPERATIONS);
-        }
-
-        Set<String> getChildTypes() {
-            return getSortedEntryMap(description, CHILDREN).keySet();
-        }
-
-        Map<String, ModelNode> getChildren(String type) {
-            return getSortedEntryMap(description.get(CHILDREN, type), MODEL_DESCRIPTION);
-        }
-
-        Map<String, ModelNode> getOperationParameters(String opName) {
-            return getSortedEntryMap(description.get(OPERATIONS, opName), REQUEST_PROPERTIES);
-        }
-
-        private Map<String, ModelNode> getSortedEntryMap(ModelNode parent, String name) {
-            if (!parent.hasDefined(name)) {
-                return Collections.emptyMap();
-            }
-            Map<String, ModelNode> sorted = new TreeMap<>();
-            for (Property prop : parent.get(name).asPropertyList()) {
-                sorted.put(prop.getName(), prop.getValue());
-            }
-            return sorted;
-        }
-
-        private ModelVersion getCoreModelVersion() {
-            return Tools.createModelVersion(versions.get(Tools.CORE, Tools.STANDALONE));
-        }
-
-        private ModelVersion getSubsystemVersion(PathAddress address) {
-            for (PathElement element : address) {
-                if (element.getKey().equals(SUBSYSTEM)) {
-                    return Tools.createModelVersion(versions.get(SUBSYSTEM, element.getValue()));
-                }
-            }
-            throw new IllegalArgumentException("Could not find subsystem version for " + address);
-        }
-
-        boolean isRuntime() {
-            return description.hasDefined(STORAGE) && description.get(STORAGE).asString().equals("runtime");
-        }
-    }
-
-    private static Set<String> parseList(String s) {
-        if (s == null) {
-            return null;
-        }
-        String[] elements = s.trim().split(",");
-        Set<String> set = null;
-        for (String element : elements) {
-            element = element.trim();
-            if (element.length() > 0) {
-                if (set == null) {
-                    set = new HashSet<>();
-                }
-                set.add(element.trim());
-            }
-        }
-        return set;
     }
 
 }

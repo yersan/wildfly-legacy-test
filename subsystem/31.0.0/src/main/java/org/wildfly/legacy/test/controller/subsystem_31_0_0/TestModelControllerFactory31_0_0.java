@@ -18,12 +18,6 @@
 
 package org.wildfly.legacy.test.controller.subsystem_31_0_0;
 
-import java.lang.reflect.Field;
-import java.util.EnumSet;
-import java.util.Set;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-
 import org.jboss.as.controller.CapabilityRegistry;
 import org.jboss.as.controller.Extension;
 import org.jboss.as.controller.ProcessType;
@@ -36,8 +30,6 @@ import org.jboss.as.server.RuntimeExpressionResolver;
 import org.jboss.as.subsystem.test.AdditionalInitialization;
 import org.jboss.as.subsystem.test.AdditionalInitializationUtil;
 import org.jboss.as.subsystem.test.ControllerInitializer;
-import org.jboss.as.version.ProductConfig;
-import org.jboss.as.version.Stability;
 import org.wildfly.legacy.test.spi.subsystem.TestModelControllerFactory;
 
 /**
@@ -48,8 +40,8 @@ public class TestModelControllerFactory31_0_0 implements TestModelControllerFact
 
     @Override
     public ModelTestModelControllerService create(Extension mainExtension, ControllerInitializer controllerInitializer,
-            AdditionalInitialization additionalInit, ExtensionRegistry extensionRegistry, StringConfigurationPersister persister,
-            ModelTestOperationValidatorFilter validateOpsFilter, boolean registerTransformers) {
+                                                  AdditionalInitialization additionalInit, ExtensionRegistry extensionRegistry, StringConfigurationPersister persister,
+                                                  ModelTestOperationValidatorFilter validateOpsFilter, boolean registerTransformers) {
 
         final ProcessType processType = AdditionalInitializationUtil.getProcessType(additionalInit);
         final CapabilityRegistry capabilityRegistry = new CapabilityRegistry(processType.isServer());

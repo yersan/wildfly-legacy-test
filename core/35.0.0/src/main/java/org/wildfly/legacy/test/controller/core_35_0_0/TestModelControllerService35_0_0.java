@@ -96,6 +96,7 @@ import org.wildfly.security.manager.WildFlySecurityManager;
  */
 class TestModelControllerService35_0_0 extends ModelTestModelControllerService {
 
+    private static final BootErrorCollector BOOT_ERROR_COLLECTOR = new BootErrorCollector();
     private final InjectedValue<ContentRepository> injectedContentRepository = new InjectedValue<>();
     private final TestModelType type;
     private final RunningModeControl runningModeControl;
@@ -104,8 +105,8 @@ class TestModelControllerService35_0_0 extends ModelTestModelControllerService {
     private final DelegatingResourceDefinition rootResourceDefinition;
     private final ControlledProcessState processState;
     private final ExtensionRegistry extensionRegistry;
-    private volatile Initializer initializer;
     private final CapabilityRegistry capabilityRegistry;
+    private volatile Initializer initializer;
 
     TestModelControllerService35_0_0(ProcessType processType, RunningModeControl runningModeControl, StringConfigurationPersister persister, ModelTestOperationValidatorFilter validateOpsFilter,
                                      TestModelType type, ModelInitializer modelInitializer, DelegatingResourceDefinition rootResourceDefinition, ControlledProcessState processState,
@@ -136,11 +137,11 @@ class TestModelControllerService35_0_0 extends ModelTestModelControllerService {
             initializer = new ServerInitializer();
         } else if (type == TestModelType.HOST) {
             //Remove the write-local-domain-controller operation since we already simulate that here
-            for (Iterator<ModelNode> it = persister.getBootOperations().iterator() ; it.hasNext() ; ) {
+            for (Iterator<ModelNode> it = persister.getBootOperations().iterator(); it.hasNext(); ) {
                 ModelNode op = it.next();
                 if (op.get(OP).asString().equals("write-local-domain-controller")) {
                     System.out.println("WARNING: Test framework is removing the 'write-local-domain-controller' operation. If you are comparing xml results use a " +
-                             "ModelWriteSanitizer to add the \"domain-controller\" => {\"local\" => {}} part (See ShippedConfigurationsModelTestCase.testHostXml() for an example)");
+                            "ModelWriteSanitizer to add the \"domain-controller\" => {\"local\" => {}} part (See ShippedConfigurationsModelTestCase.testHostXml() for an example)");
                     it.remove();
                     break;
                 }
@@ -157,10 +158,13 @@ class TestModelControllerService35_0_0 extends ModelTestModelControllerService {
         return new TestModelControllerService35_0_0(processType, runningModeControl, persister, validateOpsFilter, type, modelInitializer, new DelegatingResourceDefinition(type), new ControlledProcessState(true), extensionRegistry, capabilityRegistry);
     }
 
-    InjectedValue<ContentRepository> getContentRepositoryInjector(){
-        return injectedContentRepository;
+    static <T> T doPrivileged(final PrivilegedAction<T> action) {
+        return WildFlySecurityManager.isChecking() ? AccessController.doPrivileged(action) : action.run();
     }
 
+    InjectedValue<ContentRepository> getContentRepositoryInjector() {
+        return injectedContentRepository;
+    }
 
     @Override
     public void start(StartContext context) throws StartException {
@@ -265,10 +269,6 @@ class TestModelControllerService35_0_0 extends ModelTestModelControllerService {
         }
     }
 
-    static <T> T doPrivileged(final PrivilegedAction<T> action) {
-        return WildFlySecurityManager.isChecking() ? AccessController.doPrivileged(action) : action.run();
-    }
-
     /**
      * Create a product config object with the stability set to the one specified in the additional initialization.
      * We need to use reflection to set the stability field as it is private and there is no setter in the ProductConfig
@@ -347,7 +347,7 @@ class TestModelControllerService35_0_0 extends ModelTestModelControllerService {
             }
 
             @Override
-            public void unregisterRemoteHost(final String id, Long remoteConnectionId, boolean cleanUnregistration){
+            public void unregisterRemoteHost(final String id, Long remoteConnectionId, boolean cleanUnregistration) {
 
             }
 
@@ -415,16 +415,16 @@ class TestModelControllerService35_0_0 extends ModelTestModelControllerService {
 
             @Override
             public void initializeMasterDomainRegistry(ManagementResourceRegistration root,
-                    ExtensibleConfigurationPersister configurationPersister, ContentRepository contentRepository,
-                    HostFileRepository fileRepository, ExtensionRegistry extensionRegistry, PathManagerService pathManager) {
+                                                       ExtensibleConfigurationPersister configurationPersister, ContentRepository contentRepository,
+                                                       HostFileRepository fileRepository, ExtensionRegistry extensionRegistry, PathManagerService pathManager) {
             }
 
             @Override
             public void initializeSlaveDomainRegistry(ManagementResourceRegistration root,
-                    ExtensibleConfigurationPersister configurationPersister, ContentRepository contentRepository,
-                    HostFileRepository fileRepository, LocalHostControllerInfo hostControllerInfo,
-                    ExtensionRegistry extensionRegistry, IgnoredDomainResourceRegistry ignoredDomainResourceRegistry,
-                    PathManagerService pathManager) {
+                                                      ExtensibleConfigurationPersister configurationPersister, ContentRepository contentRepository,
+                                                      HostFileRepository fileRepository, LocalHostControllerInfo hostControllerInfo,
+                                                      ExtensionRegistry extensionRegistry, IgnoredDomainResourceRegistry ignoredDomainResourceRegistry,
+                                                      PathManagerService pathManager) {
             }
 
             @Override
@@ -444,167 +444,8 @@ class TestModelControllerService35_0_0 extends ModelTestModelControllerService {
 
     private interface Initializer {
         void setRootResourceDefinitionDelegate();
+
         void initCoreModel(Resource rootResource, ManagementResourceRegistration rootRegistration, Resource modelControllerResource);
-    }
-
-    private class ServerInitializer implements Initializer {
-        final ExtensibleConfigurationPersister persister = new NullConfigurationPersister();
-        final ServerEnvironment environment = createStandaloneServerEnvironment();
-        final boolean parallelBoot = false;
-
-        public void setRootResourceDefinitionDelegate() {
-            rootResourceDefinition.setDelegate(new ServerRootResourceDefinition(
-                    injectedContentRepository.getValue(),
-                    persister,
-                    environment,
-                    processState,
-                    runningModeControl,
-                    extensionRegistry,
-                    parallelBoot,
-                    pathManagerService,
-                    null,
-                    authorizer,
-                    null,
-                    AuditLogger.NO_OP_LOGGER,
-                    getMutableRootResourceRegistrationProvider(),
-                    BOOT_ERROR_COLLECTOR,
-                    capabilityRegistry,
-                    new SuspendController()));
-        }
-
-        @Override
-        public void initCoreModel(Resource rootResource, ManagementResourceRegistration rootRegistration, Resource modelControllerResource) {
-            VersionModelInitializer.registerRootResource(rootResource, null);
-            Resource managementResource = Resource.Factory.create();
-            rootResource.registerChild(PathElement.pathElement(ModelDescriptionConstants.CORE_SERVICE, ModelDescriptionConstants.MANAGEMENT), managementResource);
-            rootResource.registerChild(PathElement.pathElement(ModelDescriptionConstants.CORE_SERVICE, ModelDescriptionConstants.SERVICE_CONTAINER), Resource.Factory.create());
-            rootResource.registerChild(ServerEnvironmentResourceDescription.RESOURCE_PATH, Resource.Factory.create());
-            pathManagerService.addPathManagerResources(rootResource);
-        }
-    }
-
-    private class HostInitializer implements Initializer {
-        final String hostName = "primary";
-        final HostControllerEnvironment env = createHostControllerEnvironment();
-        final LocalHostControllerInfoImpl info = createLocalHostControllerInfo(env);
-        final IgnoredDomainResourceRegistry ignoredRegistry = new IgnoredDomainResourceRegistry(info);
-        final HostControllerConfigurationPersister persister = new HostControllerConfigurationPersister(env, info, Executors.newCachedThreadPool(), extensionRegistry, extensionRegistry);
-        final HostFileRepository hostFileRepository = createHostFileRepository();
-        final DomainController domainController = createDomainController(env, info);
-
-        @Override
-        public void setRootResourceDefinitionDelegate() {
-            rootResourceDefinition.setDelegate(
-                    new HostResourceDefinition(
-                            hostName,
-                            persister,
-                            env,
-                            (HostRunningModeControl)runningModeControl,
-                            hostFileRepository,
-                            info,
-                            null /*serverInventory*/,
-                            null /*remoteFileRepository*/,
-                            injectedContentRepository.getValue(),
-                            domainController,
-                            extensionRegistry,
-                            ignoredRegistry,
-                            processState,
-                            pathManagerService,
-                            authorizer,
-                            null,
-                            AuditLogger.NO_OP_LOGGER,
-                            BOOT_ERROR_COLLECTOR));
-        }
-
-        @Override
-        public void initCoreModel(Resource rootResource, ManagementResourceRegistration rootRegistration, Resource modelControllerResource) {
-            HostModelUtil.createRootRegistry(
-                    rootRegistration,
-                    env,
-                    ignoredRegistry,
-                    new HostModelRegistrar() {
-                        @Override
-                        public void registerHostModel(String hostName, ManagementResourceRegistration rootRegistration) {
-                        }
-                    },
-                    ProcessType.HOST_CONTROLLER,
-                    authorizer,
-                    modelControllerResource,
-                    new LocalHostControllerInfoImpl(processState, env),
-                    capabilityRegistry);
-
-            HostModelUtil.createHostRegistry(
-                    hostName,
-                    rootRegistration,
-                    persister,
-                    env,
-                    (HostRunningModeControl)runningModeControl,
-                    hostFileRepository,
-                    info,
-                    null /*serverInventory*/,
-                    null /*remoteFileRepository*/,
-                    injectedContentRepository.getValue(),
-                    domainController,
-                    extensionRegistry,
-                    extensionRegistry,
-                    ignoredRegistry,
-                    processState,
-                    pathManagerService,
-                    authorizer,
-                    null,
-                    AuditLogger.NO_OP_LOGGER,
-                    BOOT_ERROR_COLLECTOR);
-        }
-    }
-
-    private class DomainInitializer implements Initializer {
-
-        @Override
-        public void setRootResourceDefinitionDelegate() {
-        }
-
-        @Override
-        public void initCoreModel(Resource rootResource, ManagementResourceRegistration rootRegistration, Resource modelControllerResource) {
-            VersionModelInitializer.registerRootResource(rootResource, null);
-            final HostControllerEnvironment env = createHostControllerEnvironment();
-            final LocalHostControllerInfoImpl info = createLocalHostControllerInfo(env);
-            final IgnoredDomainResourceRegistry ignoredRegistry = new IgnoredDomainResourceRegistry(info);
-            final ExtensibleConfigurationPersister persister = new NullConfigurationPersister();
-            final HostFileRepository hostFileRepository = createHostFileRepository();
-            final DomainController domainController = createDomainController(env, info);
-            final DomainHostExcludeRegistry domainHostExcludeRegistry = new DomainHostExcludeRegistry();
-
-            DomainRootDefinition domainDefinition = new DomainRootDefinition(
-                    domainController,
-                    env,
-                    persister,
-                    injectedContentRepository.getValue(),
-                    hostFileRepository,
-                    true,
-                    info,
-                    extensionRegistry,
-                    null,
-                    pathManagerService,
-                    authorizer,
-                    null,
-                    null,
-                    domainHostExcludeRegistry,
-                    getMutableRootResourceRegistrationProvider());
-            domainDefinition.initialize(rootRegistration);
-            rootResourceDefinition.setDelegate(domainDefinition);
-
-            HostModelUtil.createRootRegistry(
-                    rootRegistration,
-                    env, ignoredRegistry,
-                    (hostName, root) -> {},
-                    processType,
-                    authorizer,
-                    modelControllerResource,
-                    new LocalHostControllerInfoImpl(processState, env),
-                    capabilityRegistry);
-            CoreManagementResourceDefinition.registerDomainResource(rootResource, null);
-        }
-
     }
 
     static class DelegatingResourceDefinition extends org.jboss.as.controller.DelegatingResourceDefinition {
@@ -668,5 +509,164 @@ class TestModelControllerService35_0_0 extends ModelTestModelControllerService {
         }
     }
 
-    private static final BootErrorCollector BOOT_ERROR_COLLECTOR = new BootErrorCollector();
+    private class ServerInitializer implements Initializer {
+        final ExtensibleConfigurationPersister persister = new NullConfigurationPersister();
+        final ServerEnvironment environment = createStandaloneServerEnvironment();
+        final boolean parallelBoot = false;
+
+        public void setRootResourceDefinitionDelegate() {
+            rootResourceDefinition.setDelegate(new ServerRootResourceDefinition(
+                    injectedContentRepository.getValue(),
+                    persister,
+                    environment,
+                    processState,
+                    runningModeControl,
+                    extensionRegistry,
+                    parallelBoot,
+                    pathManagerService,
+                    null,
+                    authorizer,
+                    null,
+                    AuditLogger.NO_OP_LOGGER,
+                    getMutableRootResourceRegistrationProvider(),
+                    BOOT_ERROR_COLLECTOR,
+                    capabilityRegistry,
+                    new SuspendController()));
+        }
+
+        @Override
+        public void initCoreModel(Resource rootResource, ManagementResourceRegistration rootRegistration, Resource modelControllerResource) {
+            VersionModelInitializer.registerRootResource(rootResource, null);
+            Resource managementResource = Resource.Factory.create();
+            rootResource.registerChild(PathElement.pathElement(ModelDescriptionConstants.CORE_SERVICE, ModelDescriptionConstants.MANAGEMENT), managementResource);
+            rootResource.registerChild(PathElement.pathElement(ModelDescriptionConstants.CORE_SERVICE, ModelDescriptionConstants.SERVICE_CONTAINER), Resource.Factory.create());
+            rootResource.registerChild(ServerEnvironmentResourceDescription.RESOURCE_PATH, Resource.Factory.create());
+            pathManagerService.addPathManagerResources(rootResource);
+        }
+    }
+
+    private class HostInitializer implements Initializer {
+        final String hostName = "primary";
+        final HostControllerEnvironment env = createHostControllerEnvironment();
+        final LocalHostControllerInfoImpl info = createLocalHostControllerInfo(env);
+        final IgnoredDomainResourceRegistry ignoredRegistry = new IgnoredDomainResourceRegistry(info);
+        final HostControllerConfigurationPersister persister = new HostControllerConfigurationPersister(env, info, Executors.newCachedThreadPool(), extensionRegistry, extensionRegistry);
+        final DomainController domainController = createDomainController(env, info);
+        final HostFileRepository hostFileRepository = createHostFileRepository();
+
+        @Override
+        public void setRootResourceDefinitionDelegate() {
+            rootResourceDefinition.setDelegate(
+                    new HostResourceDefinition(
+                            hostName,
+                            persister,
+                            env,
+                            (HostRunningModeControl) runningModeControl,
+                            hostFileRepository,
+                            info,
+                            null /*serverInventory*/,
+                            null /*remoteFileRepository*/,
+                            injectedContentRepository.getValue(),
+                            domainController,
+                            extensionRegistry,
+                            ignoredRegistry,
+                            processState,
+                            pathManagerService,
+                            authorizer,
+                            null,
+                            AuditLogger.NO_OP_LOGGER,
+                            BOOT_ERROR_COLLECTOR));
+        }
+
+        @Override
+        public void initCoreModel(Resource rootResource, ManagementResourceRegistration rootRegistration, Resource modelControllerResource) {
+            HostModelUtil.createRootRegistry(
+                    rootRegistration,
+                    env,
+                    ignoredRegistry,
+                    new HostModelRegistrar() {
+                        @Override
+                        public void registerHostModel(String hostName, ManagementResourceRegistration rootRegistration) {
+                        }
+                    },
+                    ProcessType.HOST_CONTROLLER,
+                    authorizer,
+                    modelControllerResource,
+                    new LocalHostControllerInfoImpl(processState, env),
+                    capabilityRegistry);
+
+            HostModelUtil.createHostRegistry(
+                    hostName,
+                    rootRegistration,
+                    persister,
+                    env,
+                    (HostRunningModeControl) runningModeControl,
+                    hostFileRepository,
+                    info,
+                    null /*serverInventory*/,
+                    null /*remoteFileRepository*/,
+                    injectedContentRepository.getValue(),
+                    domainController,
+                    extensionRegistry,
+                    extensionRegistry,
+                    ignoredRegistry,
+                    processState,
+                    pathManagerService,
+                    authorizer,
+                    null,
+                    AuditLogger.NO_OP_LOGGER,
+                    BOOT_ERROR_COLLECTOR);
+        }
+    }
+
+    private class DomainInitializer implements Initializer {
+
+        @Override
+        public void setRootResourceDefinitionDelegate() {
+        }
+
+        @Override
+        public void initCoreModel(Resource rootResource, ManagementResourceRegistration rootRegistration, Resource modelControllerResource) {
+            VersionModelInitializer.registerRootResource(rootResource, null);
+            final HostControllerEnvironment env = createHostControllerEnvironment();
+            final LocalHostControllerInfoImpl info = createLocalHostControllerInfo(env);
+            final IgnoredDomainResourceRegistry ignoredRegistry = new IgnoredDomainResourceRegistry(info);
+            final ExtensibleConfigurationPersister persister = new NullConfigurationPersister();
+            final HostFileRepository hostFileRepository = createHostFileRepository();
+            final DomainController domainController = createDomainController(env, info);
+            final DomainHostExcludeRegistry domainHostExcludeRegistry = new DomainHostExcludeRegistry();
+
+            DomainRootDefinition domainDefinition = new DomainRootDefinition(
+                    domainController,
+                    env,
+                    persister,
+                    injectedContentRepository.getValue(),
+                    hostFileRepository,
+                    true,
+                    info,
+                    extensionRegistry,
+                    null,
+                    pathManagerService,
+                    authorizer,
+                    null,
+                    null,
+                    domainHostExcludeRegistry,
+                    getMutableRootResourceRegistrationProvider());
+            domainDefinition.initialize(rootRegistration);
+            rootResourceDefinition.setDelegate(domainDefinition);
+
+            HostModelUtil.createRootRegistry(
+                    rootRegistration,
+                    env, ignoredRegistry,
+                    (hostName, root) -> {
+                    },
+                    processType,
+                    authorizer,
+                    modelControllerResource,
+                    new LocalHostControllerInfoImpl(processState, env),
+                    capabilityRegistry);
+            CoreManagementResourceDefinition.registerDomainResource(rootResource, null);
+        }
+
+    }
 }

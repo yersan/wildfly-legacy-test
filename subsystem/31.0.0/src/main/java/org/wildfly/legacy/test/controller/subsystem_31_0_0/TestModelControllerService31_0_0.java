@@ -86,7 +86,7 @@ public class TestModelControllerService31_0_0 extends ModelTestModelControllerSe
 
         super(processType, additionalInit.getStability(), runningModeControl, extensionRegistry.getTransformerRegistry(), persister, validateOpsFilter,
                 ResourceDefinition.builder(ResourceRegistration.of(null, additionalInit.getStability()), NonResolvingResourceDescriptionResolver.INSTANCE).build(),
-                expressionResolver, new ControlledProcessState(true),capabilityRegistry, Controller31x.INSTANCE);
+                expressionResolver, new ControlledProcessState(true), capabilityRegistry, Controller31x.INSTANCE);
 
         this.mainExtension = mainExtension;
         this.additionalInit = additionalInit;
@@ -94,6 +94,10 @@ public class TestModelControllerService31_0_0 extends ModelTestModelControllerSe
         this.extensionRegistry = extensionRegistry;
         this.runningModeControl = runningModeControl;
         this.registerTransformers = registerTransformers;
+    }
+
+    static <T> T doPrivileged(final PrivilegedAction<T> action) {
+        return WildFlySecurityManager.isChecking() ? AccessController.doPrivileged(action) : action.run();
     }
 
     @Override
@@ -127,7 +131,6 @@ public class TestModelControllerService31_0_0 extends ModelTestModelControllerSe
     protected void preBoot(List<ModelNode> bootOperations, boolean rollbackOnRuntimeFailure) {
         mainExtension.initialize(extensionRegistry.getExtensionContext("Test", getRootRegistration(), ExtensionRegistryType.MASTER));
     }
-
 
     protected void postBoot() {
         DeployerChainAddHandler.INSTANCE.clearDeployerMap();
@@ -169,10 +172,6 @@ public class TestModelControllerService31_0_0 extends ModelTestModelControllerSe
         ProductConfig productConfig = doPrivileged(this::createProductConfig);
 
         return new ServerEnvironment(null, props, new HashMap<>(), "standalone.xml", null, LaunchType.STANDALONE, runningModeControl.getRunningMode(), productConfig, false);
-    }
-
-    static <T> T doPrivileged(final PrivilegedAction<T> action) {
-        return WildFlySecurityManager.isChecking() ? AccessController.doPrivileged(action) : action.run();
     }
 
     /**

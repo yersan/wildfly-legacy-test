@@ -14,16 +14,9 @@ import org.jboss.as.version.Stability;
  */
 public interface Feature {
     /**
-     * Returns the stability level of this feature.
-     * @return a stability level
-     */
-    default Stability getStability() {
-        return Stability.DEFAULT;
-    }
-
-    /**
      * Returns a complete map of a feature per stability level.
-     * @param <F> the feature type
+     *
+     * @param <F>      the feature type
      * @param features a collection of features of different stability levels.
      * @return a full mapping of feature per stability level.
      */
@@ -33,5 +26,14 @@ public interface Feature {
             map.put(feature.getStability(), feature);
         }
         return Stability.map(map::get);
+    }
+
+    /**
+     * Returns the stability level of this feature.
+     *
+     * @return a stability level
+     */
+    default Stability getStability() {
+        return Stability.DEFAULT;
     }
 }

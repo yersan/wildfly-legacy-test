@@ -13,6 +13,7 @@ import java.util.function.Function;
 
 /**
  * Enumeration of stability levels.
+ *
  * @author Paul Ferraro
  */
 public enum Stability {
@@ -24,32 +25,18 @@ public enum Stability {
     ;
     private final String value;
 
-    public static Stability fromString(String value) {
-        return Enum.valueOf(Stability.class, value.toUpperCase(Locale.ENGLISH));
-    }
-
     Stability(String value) {
         this.value = value;
     }
 
-    @Override
-    public String toString() {
-        return this.value;
-    }
-
-    /**
-     * Indicates whether this stability enables the specified stability level.
-     * @param stability a stability level
-     * @return true, if this stability level enables the specified stability level, false otherwise.
-     */
-    public boolean enables(Stability stability) {
-        // Currently assumes ascending nested sets
-        return stability.ordinal() <= this.ordinal();
+    public static Stability fromString(String value) {
+        return Enum.valueOf(Stability.class, value.toUpperCase(Locale.ENGLISH));
     }
 
     /**
      * Returns a complete map of a feature per stability level.
-     * @param <F> the feature type
+     *
+     * @param <F>      the feature type
      * @param features a function returning the feature of a given stability level
      * @return a full mapping of feature per stability level
      */
@@ -67,5 +54,21 @@ public enum Stability {
             }
         }
         return Collections.unmodifiableMap(map);
+    }
+
+    @Override
+    public String toString() {
+        return this.value;
+    }
+
+    /**
+     * Indicates whether this stability enables the specified stability level.
+     *
+     * @param stability a stability level
+     * @return true, if this stability level enables the specified stability level, false otherwise.
+     */
+    public boolean enables(Stability stability) {
+        // Currently assumes ascending nested sets
+        return stability.ordinal() <= this.ordinal();
     }
 }
